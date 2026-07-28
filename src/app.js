@@ -3,6 +3,11 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 
+const authRoutes = require("./routes/auth.routes");
+const specialtyRoutes = require("./routes/specialty.routes");
+
+
+
 const app = express();
 
 app.use(cors());
@@ -13,6 +18,10 @@ app.get("/", (req, res) => {
     message: "Clinic Appointment System API is running",
   });
 });
+
+app.use("/api/auth", authRoutes);
+app.use("/api/specialties", specialtyRoutes);
+
 
 const PORT = process.env.PORT || 5000;
 
