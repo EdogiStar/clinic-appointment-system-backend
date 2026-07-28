@@ -5,6 +5,7 @@ const cors = require("cors");
 
 const authRoutes = require("./routes/auth.routes");
 const specialtyRoutes = require("./routes/specialty.routes");
+const doctorRoutes = require("./routes/doctor.routes");
 
 
 
@@ -21,6 +22,7 @@ app.get("/", (req, res) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/specialties", specialtyRoutes);
+app.use("/api/doctors", doctorRoutes);
 
 
 const PORT = process.env.PORT || 5000;
