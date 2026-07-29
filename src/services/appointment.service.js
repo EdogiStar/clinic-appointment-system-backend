@@ -1,4 +1,5 @@
 const supabaseAdmin = require("../config/supabaseAdmin");
+const slotService = require("./slot.service");
 
 const createAppointment = async (
   {
@@ -10,7 +11,20 @@ const createAppointment = async (
   },
   currentUser
 ) => {
-  // 1. Check that the doctor exists
+  // 1. Prevent booking appointments in the past
+  const appointmentStart = new Date(
+    `${appointment_date}T${start_time}`
+  );
+
+  const now = new Date();
+
+  if (appointmentStart <= now) {
+    throw new Error(
+      "You cannot book an appointment in the past"
+    );
+  }
+
+  // 2. Check that the doctor exists
   const { data: doctor, error: doctorError } =
     await supabaseAdmin
       .from("doctors")
@@ -26,37 +40,18 @@ const createAppointment = async (
     throw new Error("Doctor not found");
   }
 
-  // 2. Get the day of the week
-  const [year, month, day] = appointment_date
-    .split("-")
-    .map(Number);
+  // 3. Validate selected slot
+  const availableSlots =
+    await slotService.generateAvailableSlots(
+      doctor_id,
+      appointment_date
+    );
 
-  const date = new Date(
-    Date.UTC(year, month - 1, day)
-  );
+  const selectedSlot = start_time.slice(0, 5);
 
-  const dayOfWeek = date.toLocaleDateString("en-US", {
-    weekday: "long",
-    timeZone: "UTC",
-  });
-
-  // 3. Check doctor's availability
-  const { data: availability, error: availabilityError } =
-    await supabaseAdmin
-      .from("doctor_availabilities")
-      .select("*")
-      .eq("doctor_id", doctor_id)
-      .eq("day_of_week", dayOfWeek)
-      .lte("start_time", start_time)
-      .gte("end_time", end_time);
-
-  if (availabilityError) {
-    throw new Error(availabilityError.message);
-  }
-
-  if (!availability || availability.length === 0) {
+  if (!availableSlots.includes(selectedSlot)) {
     throw new Error(
-      "Doctor is not available at the selected time"
+      "Selected time slot is not available"
     );
   }
 
@@ -111,8 +106,13 @@ const createAppointment = async (
   return appointment;
 };
 
-const getPatientAppointments = async (patientId) => {
-  const { data, error } = await supabaseAdmin
+const getPatientAppointments = async (
+  patientId,
+  filters = {}
+) => {
+  const { status, type } = filters;
+
+  let query = supabaseAdmin
     .from("appointments")
     .select(`
       *,
@@ -121,7 +121,38 @@ const getPatientAppointments = async (patientId) => {
         user_id
       )
     `)
-    .eq("patient_id", patientId)
+    .eq("patient_id", patientId);
+
+  // Filter by appointment status
+  if (status) {
+    query = query.eq("status", status);
+  }
+
+  // Filter upcoming appointments
+  if (type === "upcoming") {
+    const today = new Date()
+      .toISOString()
+      .split("T")[0];
+
+    query = query.gte(
+      "appointment_date",
+      today
+    );
+  }
+
+  // Filter past appointments
+  if (type === "past") {
+    const today = new Date()
+      .toISOString()
+      .split("T")[0];
+
+    query = query.lt(
+      "appointment_date",
+      today
+    );
+  }
+
+  const { data, error } = await query
     .order("appointment_date", {
       ascending: true,
     })
@@ -136,8 +167,45 @@ const getPatientAppointments = async (patientId) => {
   return data;
 };
 
-const getDoctorAppointments = async (doctorId) => {
-  const { data, error } = await supabaseAdmin
+const getDoctorAppointments = async (
+  doctorId,
+  filters = {},
+  currentUser
+) => {
+  const { status, type } = filters;
+
+  // Get current user's role
+  const role = currentUser.profile.role;
+
+  // Doctor can only view their own appointments
+  if (role === "doctor") {
+    const {
+      data: doctor,
+      error: doctorError,
+    } = await supabaseAdmin
+      .from("doctors")
+      .select("id")
+      .eq("user_id", currentUser.id)
+      .maybeSingle();
+
+    if (doctorError) {
+      throw new Error(doctorError.message);
+    }
+
+    if (!doctor) {
+      throw new Error("Doctor profile not found");
+    }
+
+    if (doctor.id !== doctorId) {
+      throw new Error(
+        "You can only view your own appointments"
+      );
+    }
+  }
+
+  // Admin can view appointments for any doctor
+
+  let query = supabaseAdmin
     .from("appointments")
     .select(`
       *,
@@ -148,7 +216,38 @@ const getDoctorAppointments = async (doctorId) => {
         phone
       )
     `)
-    .eq("doctor_id", doctorId)
+    .eq("doctor_id", doctorId);
+
+  // Filter by appointment status
+  if (status) {
+    query = query.eq("status", status);
+  }
+
+  // Filter upcoming appointments
+  if (type === "upcoming") {
+    const today = new Date()
+      .toISOString()
+      .split("T")[0];
+
+    query = query.gte(
+      "appointment_date",
+      today
+    );
+  }
+
+  // Filter past appointments
+  if (type === "past") {
+    const today = new Date()
+      .toISOString()
+      .split("T")[0];
+
+    query = query.lt(
+      "appointment_date",
+      today
+    );
+  }
+
+  const { data, error } = await query
     .order("appointment_date", {
       ascending: true,
     })
@@ -162,6 +261,7 @@ const getDoctorAppointments = async (doctorId) => {
 
   return data;
 };
+
 
 const getAppointmentById = async (
   appointmentId,
@@ -237,7 +337,6 @@ const getAppointmentById = async (
   return appointment;
 };
 
-
 const updateAppointmentStatus = async (
   appointmentId,
   status,
@@ -282,7 +381,45 @@ const updateAppointmentStatus = async (
   // 3. Get current user's role
   const role = currentUser.profile.role;
 
-  // 4. Patient can only cancel their own appointment
+  // 4. Prevent confirming a past appointment
+  if (
+    status === "confirmed" &&
+    appointment.appointment_date &&
+    appointment.start_time
+  ) {
+    const appointmentStart = new Date(
+      `${appointment.appointment_date}T${appointment.start_time}`
+    );
+
+    const now = new Date();
+
+    if (appointmentStart <= now) {
+      throw new Error(
+        "Cannot confirm an appointment whose scheduled time has passed"
+      );
+    }
+  }
+
+  // 5. Prevent completing an appointment before its scheduled end time
+  if (
+    status === "completed" &&
+    appointment.appointment_date &&
+    appointment.end_time
+  ) {
+    const appointmentEnd = new Date(
+      `${appointment.appointment_date}T${appointment.end_time}`
+    );
+
+    const now = new Date();
+
+    if (appointmentEnd > now) {
+      throw new Error(
+        "Cannot complete an appointment before its scheduled time"
+      );
+    }
+  }
+
+  // 6. Patient can only cancel their own appointment
   if (role === "patient") {
     if (appointment.patient_id !== currentUser.id) {
       throw new Error(
@@ -297,7 +434,7 @@ const updateAppointmentStatus = async (
     }
   }
 
-  // 5. Doctor can manage appointments assigned to them
+  // 7. Doctor can manage appointments assigned to them
   if (role === "doctor") {
     const {
       data: doctor,
@@ -334,12 +471,12 @@ const updateAppointmentStatus = async (
     }
   }
 
-  // 6. Admin can update any appointment
+  // 8. Admin can update any appointment
   if (role === "admin") {
     // No additional restrictions
   }
 
-  // 7. Update appointment
+  // 9. Update appointment
   const {
     data,
     error,
@@ -359,7 +496,6 @@ const updateAppointmentStatus = async (
 
   return data;
 };
-
 module.exports = {
   createAppointment,
   getPatientAppointments,

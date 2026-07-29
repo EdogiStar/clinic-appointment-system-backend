@@ -7,6 +7,7 @@ const {
   getPatientDashboard,
   getDoctors,
   getDoctorAvailability,
+  getDoctorSlots,
 } = require("../controllers/patient.controller");
 
 
@@ -34,5 +35,11 @@ router.get(
   getDoctorAvailability
 );
 
+router.get(
+  "/doctors/:doctorId/slots",
+  authenticate,
+  requireRole("patient"),
+  getDoctorSlots
+);
 
 module.exports = router;

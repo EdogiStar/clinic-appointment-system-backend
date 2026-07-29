@@ -24,16 +24,19 @@ const getPatientAppointments = async (req, res) => {
   try {
     const appointments =
       await appointmentService.getPatientAppointments(
-        req.user.id
+        req.user.id,
+        req.query
       );
 
     res.status(200).json({
-      message: "Patient appointments retrieved successfully",
+      message:
+        "Patient appointments retrieved successfully",
       data: appointments,
     });
   } catch (error) {
     res.status(500).json({
-      message: "Failed to retrieve appointments",
+      message:
+        "Failed to retrieve patient appointments",
       error: error.message,
     });
   }
@@ -43,16 +46,20 @@ const getDoctorAppointments = async (req, res) => {
   try {
     const appointments =
       await appointmentService.getDoctorAppointments(
-        req.params.doctorId
+        req.params.doctorId,
+        req.query,
+        req.user
       );
 
     res.status(200).json({
-      message: "Doctor appointments retrieved successfully",
+      message:
+        "Doctor appointments retrieved successfully",
       data: appointments,
     });
   } catch (error) {
-    res.status(500).json({
-      message: "Failed to retrieve appointments",
+    res.status(403).json({
+      message:
+        "Failed to retrieve doctor appointments",
       error: error.message,
     });
   }
@@ -67,17 +74,18 @@ const getAppointmentById = async (req, res) => {
       );
 
     res.status(200).json({
-      message: "Appointment retrieved successfully",
+      message:
+        "Appointment retrieved successfully",
       data: appointment,
     });
   } catch (error) {
     res.status(404).json({
-      message: "Failed to retrieve appointment",
+      message:
+        "Failed to retrieve appointment",
       error: error.message,
     });
   }
 };
-
 
 const updateAppointmentStatus = async (req, res) => {
   try {
@@ -89,12 +97,14 @@ const updateAppointmentStatus = async (req, res) => {
       );
 
     res.status(200).json({
-      message: "Appointment status updated successfully",
+      message:
+        "Appointment status updated successfully",
       data: appointment,
     });
   } catch (error) {
     res.status(400).json({
-      message: "Failed to update appointment status",
+      message:
+        "Failed to update appointment status",
       error: error.message,
     });
   }

@@ -1,5 +1,5 @@
 const patientService = require("../services/patient.service");
-
+const slotService = require("../services/slot.service");
 
 const getPatientDashboard = async (req, res) => {
   try {
@@ -75,9 +75,51 @@ const getDoctorAvailability = async (req, res) => {
   }
 };
 
+const getDoctorSlots = async (req, res) => {
+  try {
+    const { doctorId } = req.params;
+    const { date } = req.query;
+
+
+    if (!date) {
+      return res.status(400).json({
+        message: "Date is required",
+      });
+    }
+
+
+    const slots =
+      await slotService.generateAvailableSlots(
+        doctorId,
+        date
+      );
+
+
+    res.status(200).json({
+      message:
+        "Available slots retrieved successfully",
+      data: {
+        date,
+        slots,
+      },
+    });
+
+
+  } catch (error) {
+
+    res.status(500).json({
+      message:
+        "Failed to retrieve available slots",
+      error: error.message,
+    });
+
+  }
+};
+
 
 module.exports = {
   getPatientDashboard,
   getDoctors,
   getDoctorAvailability,
+  getDoctorSlots,
 };
