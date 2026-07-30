@@ -10,7 +10,7 @@ const availabilityRoutes = require("./routes/availability.routes");
 const appointmentRoutes = require("./routes/appointment.routes");
 const adminRoutes = require("./routes/admin.routes");
 const patientRoutes = require("./routes/patient.routes");
-
+const notificationRoutes = require("./routes/notification.routes");
 
 
 const app = express();
@@ -31,6 +31,7 @@ app.use("/api/availability", availabilityRoutes);
 app.use("/api/appointments", appointmentRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/patients", patientRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 
 const PORT = process.env.PORT || 5000;
