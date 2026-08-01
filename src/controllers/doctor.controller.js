@@ -1,4 +1,5 @@
 const doctorService = require("../services/doctor.service");
+const appointmentService = require("../services/appointment.service");
 const availabilityService = require("../services/availability.service");
 const supabaseAdmin = require("../config/supabaseAdmin");
 
@@ -68,12 +69,11 @@ const updateAppointmentStatus = async (
 ) => {
   try {
     const appointment =
-      await doctorService.updateAppointmentStatus(
-        req.user.id,
+      await appointmentService.updateAppointmentStatus(
         req.params.id,
-        req.body.status
+        req.body.status,
+        req.user
       );
-
 
     res.status(200).json({
       message:
