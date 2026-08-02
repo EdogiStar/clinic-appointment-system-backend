@@ -150,9 +150,35 @@ const getDoctorAvailability = async (doctorId) => {
   return availability;
 };
 
+const getPatients = async () => {
+  const {
+    data: patients,
+    error,
+  } = await supabaseAdmin
+    .from("users")
+    .select(`
+      id,
+      full_name,
+      email,
+      phone,
+      created_at
+    `)
+    .eq("role", "patient")
+    .order("created_at", {
+      ascending: false,
+    });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return patients;
+};
+
 
 module.exports = {
   getPatientDashboard,
   getDoctors,
   getDoctorAvailability,
+  getPatients,
 };

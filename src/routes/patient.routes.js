@@ -5,15 +5,28 @@ const requireRole = require("../middleware/role.middleware");
 
 const {
   getPatientDashboard,
+  getPatients,
   getDoctors,
   getDoctorAvailability,
   getDoctorSlots,
 } = require("../controllers/patient.controller");
 
-
 const router = express.Router();
 
+/**
+ * Admin
+ * Get all patients
+ */
+router.get(
+  "/",
+  authenticate,
+  requireRole("admin"),
+  getPatients
+);
 
+/**
+ * Patient dashboard
+ */
 router.get(
   "/dashboard",
   authenticate,
@@ -21,6 +34,9 @@ router.get(
   getPatientDashboard
 );
 
+/**
+ * Patient doctors
+ */
 router.get(
   "/doctors",
   authenticate,
@@ -28,6 +44,9 @@ router.get(
   getDoctors
 );
 
+/**
+ * Patient doctor availability
+ */
 router.get(
   "/doctors/:doctorId/availability",
   authenticate,
@@ -35,6 +54,9 @@ router.get(
   getDoctorAvailability
 );
 
+/**
+ * Patient doctor slots
+ */
 router.get(
   "/doctors/:doctorId/slots",
   authenticate,
