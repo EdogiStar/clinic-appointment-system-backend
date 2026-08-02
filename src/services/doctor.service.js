@@ -9,19 +9,24 @@ const createDoctor = async ({
   license_number,
 }) => {
   // Create doctor authentication account
-  const { data: authData, error: authError } =
-    await supabaseAdmin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-    });
+  const {
+    data: authData,
+    error: authError,
+  } = await supabaseAdmin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+  });
 
   if (authError) {
     throw new Error(authError.message);
   }
 
   // Create user profile
-  const { data: user, error: userError } = await supabaseAdmin
+  const {
+    data: user,
+    error: userError,
+  } = await supabaseAdmin
     .from("users")
     .insert({
       id: authData.user.id,
@@ -34,12 +39,19 @@ const createDoctor = async ({
     .single();
 
   if (userError) {
-    await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+    // Roll back Auth account
+    await supabaseAdmin.auth.admin.deleteUser(
+      authData.user.id
+    );
+
     throw new Error(userError.message);
   }
 
   // Create doctor profile
-  const { data: doctor, error: doctorError } = await supabaseAdmin
+  const {
+    data: doctor,
+    error: doctorError,
+  } = await supabaseAdmin
     .from("doctors")
     .insert({
       user_id: authData.user.id,
@@ -50,13 +62,16 @@ const createDoctor = async ({
     .single();
 
   if (doctorError) {
-    // Roll back both records if doctor profile fails
+    // Roll back user profile
     await supabaseAdmin
       .from("users")
       .delete()
       .eq("id", authData.user.id);
 
-    await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+    // Roll back Auth account
+    await supabaseAdmin.auth.admin.deleteUser(
+      authData.user.id
+    );
 
     throw new Error(doctorError.message);
   }
@@ -65,6 +80,48 @@ const createDoctor = async ({
     user,
     doctor,
   };
+};
+
+/**
+ * Get all doctors
+ *
+ * Accessible by:
+ * - Admin
+ * - Doctor
+ * - Patient
+ */
+const getDoctors = async () => {
+  const {
+    data: doctors,
+    error,
+  } = await supabaseAdmin
+    .from("doctors")
+    .select(`
+      id,
+      user_id,
+      specialty_id,
+      license_number,
+      bio,
+      user:user_id (
+        id,
+        full_name,
+        email,
+        phone
+      ),
+      specialty:specialty_id (
+        id,
+        name
+      )
+    `)
+    .order("id", {
+      ascending: true,
+    });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return doctors;
 };
 
 const getDoctorDashboard = async (userId) => {
@@ -100,7 +157,6 @@ const getDoctorDashboard = async (userId) => {
     throw new Error("Doctor profile not found");
   }
 
-
   // Get doctor appointments
   const {
     data: appointments,
@@ -113,11 +169,9 @@ const getDoctorDashboard = async (userId) => {
     `)
     .eq("doctor_id", doctor.id);
 
-
   if (appointmentError) {
     throw new Error(appointmentError.message);
   }
-
 
   const appointmentStats = {
     total: appointments.length,
@@ -139,18 +193,15 @@ const getDoctorDashboard = async (userId) => {
     ).length,
   };
 
-
   // Today's appointments
   const today = new Date()
     .toISOString()
     .split("T")[0];
 
-
   const todayCount = appointments.filter(
     (item) =>
       item.appointment_date === today
   ).length;
-
 
   // Availability count
   const {
@@ -164,11 +215,11 @@ const getDoctorDashboard = async (userId) => {
     })
     .eq("doctor_id", doctor.id);
 
-
   if (availabilityError) {
-    throw new Error(availabilityError.message);
+    throw new Error(
+      availabilityError.message
+    );
   }
-
 
   return {
     profile: {
@@ -176,8 +227,10 @@ const getDoctorDashboard = async (userId) => {
       name: doctor.user.full_name,
       email: doctor.user.email,
       phone: doctor.user.phone,
-      specialty: doctor.specialty?.name,
-      license_number: doctor.license_number,
+      specialty:
+        doctor.specialty?.name,
+      license_number:
+        doctor.license_number,
       bio: doctor.bio,
     },
 
@@ -193,7 +246,9 @@ const getDoctorDashboard = async (userId) => {
   };
 };
 
-const getDoctorAppointments = async (userId) => {
+const getDoctorAppointments = async (
+  userId
+) => {
   // Find doctor profile
   const {
     data: doctor,
@@ -204,47 +259,46 @@ const getDoctorAppointments = async (userId) => {
     .eq("user_id", userId)
     .maybeSingle();
 
-
   if (doctorError) {
-    throw new Error(doctorError.message);
+    throw new Error(
+      doctorError.message
+    );
   }
-
 
   if (!doctor) {
-    throw new Error("Doctor profile not found");
+    throw new Error(
+      "Doctor profile not found"
+    );
   }
-
 
   // Get appointments
   const {
     data: appointments,
     error: appointmentError,
-  } =
-    await supabaseAdmin
-      .from("appointments")
-      .select(`
+  } = await supabaseAdmin
+    .from("appointments")
+    .select(`
+      id,
+      appointment_date,
+      start_time,
+      end_time,
+      reason,
+      status,
+
+      patient:patient_id (
         id,
-        appointment_date,
-        start_time,
-        end_time,
-        reason,
-        status,
-
-        patient:patient_id (
-          id,
-          full_name,
-          email,
-          phone
-        )
-      `)
-      .eq(
-        "doctor_id",
-        doctor.id
+        full_name,
+        email,
+        phone
       )
-      .order("appointment_date", {
-        ascending: true,
-      });
-
+    `)
+    .eq(
+      "doctor_id",
+      doctor.id
+    )
+    .order("appointment_date", {
+      ascending: true,
+    });
 
   if (appointmentError) {
     throw new Error(
@@ -252,13 +306,12 @@ const getDoctorAppointments = async (userId) => {
     );
   }
 
-
   return appointments;
 };
 
-
 module.exports = {
   createDoctor,
+  getDoctors,
   getDoctorDashboard,
   getDoctorAppointments,
 };

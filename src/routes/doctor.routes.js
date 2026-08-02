@@ -6,6 +6,7 @@ const requireRole = require("../middleware/role.middleware");
 
 const {
   createDoctor,
+  getDoctors,
   getDoctorDashboard,
   getDoctorAppointments,
   updateAppointmentStatus,
@@ -18,6 +19,30 @@ const {
 
 const router = express.Router();
 
+/**
+ * Get all doctors
+ *
+ * Accessible by:
+ * - Admin
+ * - Doctor
+ * - Patient
+ */
+router.get(
+  "/",
+  authenticate,
+  requireRole(
+    "admin",
+    "doctor",
+    "patient"
+  ),
+  getDoctors
+);
+
+/**
+ * Create a doctor
+ *
+ * Admin only
+ */
 router.post(
   "/",
   authenticate,
@@ -26,7 +51,11 @@ router.post(
   createDoctor
 );
 
-// Doctor dashboard
+/**
+ * Doctor dashboard
+ *
+ * Doctor only
+ */
 router.get(
   "/dashboard",
   authenticate,
@@ -34,7 +63,11 @@ router.get(
   getDoctorDashboard
 );
 
-// Doctor appointments
+/**
+ * Doctor appointments
+ *
+ * Doctor only
+ */
 router.get(
   "/appointments",
   authenticate,
@@ -42,7 +75,11 @@ router.get(
   getDoctorAppointments
 );
 
-// Doctor updates appointment status
+/**
+ * Doctor updates appointment status
+ *
+ * Doctor only
+ */
 router.patch(
   "/appointments/:id/status",
   authenticate,
@@ -50,7 +87,11 @@ router.patch(
   updateAppointmentStatus
 );
 
-// Doctor availability
+/**
+ * Doctor availability
+ *
+ * Doctor only
+ */
 router.get(
   "/availability",
   authenticate,

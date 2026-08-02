@@ -3,9 +3,15 @@ const appointmentService = require("../services/appointment.service");
 const availabilityService = require("../services/availability.service");
 const supabaseAdmin = require("../config/supabaseAdmin");
 
+/**
+ * Create a doctor
+ * Admin only
+ */
 const createDoctor = async (req, res) => {
   try {
-    const doctor = await doctorService.createDoctor(req.body);
+    const doctor = await doctorService.createDoctor(
+      req.body
+    );
 
     res.status(201).json({
       message: "Doctor created successfully",
@@ -19,7 +25,40 @@ const createDoctor = async (req, res) => {
   }
 };
 
-const getDoctorDashboard = async (req, res) => {
+/**
+ * Get all doctors
+ *
+ * Accessible by:
+ * - Admin
+ * - Doctor
+ * - Patient
+ */
+const getDoctors = async (req, res) => {
+  try {
+    const doctors =
+      await doctorService.getDoctors();
+
+    res.status(200).json({
+      message:
+        "Doctors retrieved successfully",
+      data: doctors,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message:
+        "Failed to retrieve doctors",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Doctor dashboard
+ */
+const getDoctorDashboard = async (
+  req,
+  res
+) => {
   try {
     const dashboard =
       await doctorService.getDoctorDashboard(
@@ -31,7 +70,6 @@ const getDoctorDashboard = async (req, res) => {
         "Doctor dashboard retrieved successfully",
       data: dashboard,
     });
-
   } catch (error) {
     res.status(500).json({
       message:
@@ -41,7 +79,13 @@ const getDoctorDashboard = async (req, res) => {
   }
 };
 
-const getDoctorAppointments = async (req, res) => {
+/**
+ * Doctor appointments
+ */
+const getDoctorAppointments = async (
+  req,
+  res
+) => {
   try {
     const appointments =
       await doctorService.getDoctorAppointments(
@@ -53,7 +97,6 @@ const getDoctorAppointments = async (req, res) => {
         "Doctor appointments retrieved successfully",
       data: appointments,
     });
-
   } catch (error) {
     res.status(500).json({
       message:
@@ -63,6 +106,9 @@ const getDoctorAppointments = async (req, res) => {
   }
 };
 
+/**
+ * Doctor updates appointment status
+ */
 const updateAppointmentStatus = async (
   req,
   res
@@ -80,7 +126,6 @@ const updateAppointmentStatus = async (
         "Appointment status updated successfully",
       data: appointment,
     });
-
   } catch (error) {
     res.status(400).json({
       message:
@@ -90,21 +135,27 @@ const updateAppointmentStatus = async (
   }
 };
 
-const getMyAvailability = async (req, res) => {
+/**
+ * Get logged-in doctor's availability
+ */
+const getMyAvailability = async (
+  req,
+  res
+) => {
   try {
     // Find doctor profile using logged-in user
-    const { data: doctor, error } =
-      await supabaseAdmin
-        .from("doctors")
-        .select("id")
-        .eq("user_id", req.user.id)
-        .maybeSingle();
-
+    const {
+      data: doctor,
+      error,
+    } = await supabaseAdmin
+      .from("doctors")
+      .select("id")
+      .eq("user_id", req.user.id)
+      .maybeSingle();
 
     if (error) {
       throw new Error(error.message);
     }
-
 
     if (!doctor) {
       throw new Error(
@@ -112,19 +163,16 @@ const getMyAvailability = async (req, res) => {
       );
     }
 
-
     const availability =
       await availabilityService.getDoctorAvailability(
         doctor.id
       );
-
 
     res.status(200).json({
       message:
         "Doctor availability retrieved successfully",
       data: availability,
     });
-
   } catch (error) {
     res.status(500).json({
       message:
@@ -136,6 +184,7 @@ const getMyAvailability = async (req, res) => {
 
 module.exports = {
   createDoctor,
+  getDoctors,
   getDoctorDashboard,
   getDoctorAppointments,
   updateAppointmentStatus,
