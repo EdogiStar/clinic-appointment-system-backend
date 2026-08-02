@@ -132,9 +132,7 @@ const createAppointment = async (
   return appointment;
 };
 
-const getPatientAppointments = async (
-  patientId
-) => {
+const getPatientAppointments = async (patientId) => {
   const {
     data,
     error,
@@ -154,7 +152,7 @@ const getPatientAppointments = async (
         specialty_id,
         license_number,
         bio,
-        user:user_id (
+        users:user_id (
           id,
           full_name,
           email,
@@ -162,27 +160,16 @@ const getPatientAppointments = async (
         )
       )
     `)
-    .eq(
-      "patient_id",
-      patientId
-    )
-    .order(
-      "appointment_date",
-      {
-        ascending: true,
-      }
-    )
-    .order(
-      "start_time",
-      {
-        ascending: true,
-      }
-    );
+    .eq("patient_id", patientId)
+    .order("appointment_date", {
+      ascending: true,
+    })
+    .order("start_time", {
+      ascending: true,
+    });
 
   if (error) {
-    throw new Error(
-      error.message
-    );
+    throw new Error(error.message);
   }
 
   return data;
