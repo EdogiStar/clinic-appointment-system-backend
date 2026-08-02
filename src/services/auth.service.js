@@ -1,20 +1,21 @@
 const supabase = require("../config/supabase");
 
-
 const loginUser = async ({ email, password }) => {
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
+  const { data, error } =
+    await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
   if (error) {
     throw new Error(error.message);
   }
 
-  const { data: users, error: userError } = await supabase
-    .from("users")
-    .select("*")
-    .eq("id", data.user.id);
+  const { data: users, error: userError } =
+    await supabase
+      .from("users")
+      .select("*")
+      .eq("id", data.user.id);
 
   if (userError) {
     throw new Error(userError.message);
@@ -26,25 +27,36 @@ const loginUser = async ({ email, password }) => {
 
   return {
     user: users[0],
-    session: data.session,
+    token: data.session.access_token,
+    refreshToken: data.session.refresh_token,
   };
 };
 
-const registerPatient = async ({ full_name, email, password, phone }) => {
+const registerPatient = async ({
+  full_name,
+  email,
+  password,
+  phone,
+}) => {
   // Create account in Supabase Auth
-  const { data: authData, error: authError } =
-    await supabase.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-    });
+  const {
+    data: authData,
+    error: authError,
+  } = await supabase.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+  });
 
   if (authError) {
     throw new Error(authError.message);
   }
 
   // Create user profile in our users table
-  const { data: user, error: userError } = await supabase
+  const {
+    data: user,
+    error: userError,
+  } = await supabase
     .from("users")
     .insert({
       id: authData.user.id,
@@ -58,7 +70,9 @@ const registerPatient = async ({ full_name, email, password, phone }) => {
 
   if (userError) {
     // If profile creation fails, remove the Auth account
-    await supabase.auth.admin.deleteUser(authData.user.id);
+    await supabase.auth.admin.deleteUser(
+      authData.user.id
+    );
 
     throw new Error(userError.message);
   }
