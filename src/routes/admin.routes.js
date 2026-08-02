@@ -8,19 +8,30 @@ const {
   getAllUsers,
   getUserById,
   getAllDoctors,
+  activateDoctor,
+  rejectDoctor,
   getAllAppointments,
   updateAppointmentStatus,
 } = require("../controllers/admin.controller");
 
 const router = express.Router();
 
-// Admin dashboard statistics
+
+// ==========================================
+// ADMIN DASHBOARD
+// ==========================================
+
 router.get(
   "/dashboard",
   authenticate,
   requireRole("admin"),
   getDashboardStats
 );
+
+
+// ==========================================
+// USERS
+// ==========================================
 
 // Get all users
 router.get(
@@ -30,6 +41,7 @@ router.get(
   getAllUsers
 );
 
+
 // Get single user
 router.get(
   "/users/:id",
@@ -37,6 +49,11 @@ router.get(
   requireRole("admin"),
   getUserById
 );
+
+
+// ==========================================
+// DOCTORS
+// ==========================================
 
 // Get all doctors
 router.get(
@@ -46,6 +63,29 @@ router.get(
   getAllDoctors
 );
 
+
+// Activate pending doctor
+router.patch(
+  "/doctors/:id/activate",
+  authenticate,
+  requireRole("admin"),
+  activateDoctor
+);
+
+
+// Reject pending doctor
+router.patch(
+  "/doctors/:id/reject",
+  authenticate,
+  requireRole("admin"),
+  rejectDoctor
+);
+
+
+// ==========================================
+// APPOINTMENTS
+// ==========================================
+
 // Get all appointments
 router.get(
   "/appointments",
@@ -53,6 +93,7 @@ router.get(
   requireRole("admin"),
   getAllAppointments
 );
+
 
 // Admin updates appointment status
 router.patch(
