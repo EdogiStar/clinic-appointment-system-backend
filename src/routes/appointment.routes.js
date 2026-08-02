@@ -10,6 +10,7 @@ const {
   getDoctorAppointments,
   getAppointmentById,
   updateAppointmentStatus,
+  getAllAppointments,
 } = require("../controllers/appointment.controller");
 
 const {
@@ -34,6 +35,13 @@ router.get(
   authenticate,
   requireRole("patient"),
   getPatientAppointments
+);
+
+router.get(
+  "/admin",
+  authenticate,
+  requireRole("admin"),
+  getAllAppointments
 );
 
 // Doctor views their appointments

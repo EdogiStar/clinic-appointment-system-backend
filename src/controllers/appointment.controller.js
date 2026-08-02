@@ -110,10 +110,39 @@ const updateAppointmentStatus = async (req, res) => {
   }
 };
 
+const getAllAppointments = async (
+  req,
+  res
+) => {
+  try {
+    const appointments =
+      await appointmentService.getAllAppointments();
+
+    res.status(200).json({
+      message:
+        "All appointments retrieved successfully",
+      data: appointments,
+    });
+  } catch (error) {
+    console.error(
+      "GET ALL APPOINTMENTS ERROR:",
+      error
+    );
+
+    res.status(500).json({
+      message:
+        "Failed to retrieve appointments",
+      error: error.message,
+    });
+  }
+};
+
+
 module.exports = {
   createAppointment,
   getPatientAppointments,
   getDoctorAppointments,
   getAppointmentById,
   updateAppointmentStatus,
+  getAllAppointments,
 };

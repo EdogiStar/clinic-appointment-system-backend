@@ -605,10 +605,53 @@ const updateAppointmentStatus = async (
   return data;
 };
 
+const getAllAppointments = async () => {
+  const {
+    data,
+    error,
+  } = await supabaseAdmin
+    .from("appointments")
+    .select(`
+      *,
+      patient:patient_id (
+        id,
+        full_name,
+        email,
+        phone
+      ),
+      doctor:doctor_id (
+        id,
+        user_id,
+        specialty_id,
+        license_number,
+        bio,
+        users:user_id (
+          id,
+          full_name,
+          email,
+          phone
+        )
+      )
+    `)
+    .order("appointment_date", {
+      ascending: true,
+    })
+    .order("start_time", {
+      ascending: true,
+    });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+};
+
 module.exports = {
   createAppointment,
   getPatientAppointments,
   getDoctorAppointments,
   getAppointmentById,
   updateAppointmentStatus,
+  getAllAppointments,
 };
