@@ -135,35 +135,54 @@ const createAppointment = async (
 const getPatientAppointments = async (
   patientId
 ) => {
-  const { data, error } =
-    await supabaseAdmin
-      .from("appointments")
-      .select(`
-        *,
-        doctors (
+  const {
+    data,
+    error,
+  } = await supabaseAdmin
+    .from("appointments")
+    .select(`
+      *,
+      patient:patient_id (
+        id,
+        full_name,
+        email,
+        phone
+      ),
+      doctor:doctor_id (
+        id,
+        user_id,
+        specialty_id,
+        license_number,
+        bio,
+        user:user_id (
           id,
-          user_id
+          full_name,
+          email,
+          phone
         )
-      `)
-      .eq(
-        "patient_id",
-        patientId
       )
-      .order(
-        "appointment_date",
-        {
-          ascending: true,
-        }
-      )
-      .order(
-        "start_time",
-        {
-          ascending: true,
-        }
-      );
+    `)
+    .eq(
+      "patient_id",
+      patientId
+    )
+    .order(
+      "appointment_date",
+      {
+        ascending: true,
+      }
+    )
+    .order(
+      "start_time",
+      {
+        ascending: true,
+      }
+    );
 
   if (error) {
-    throw new Error(error.message);
+    throw new Error(
+      error.message
+    );
   }
 
   return data;
