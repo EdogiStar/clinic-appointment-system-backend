@@ -1,4 +1,5 @@
 const supabase = require("../config/supabase");
+const supabaseAdmin = require("../config/supabaseAdmin");
 
 /**
  * Login user
@@ -18,7 +19,9 @@ const loginUser = async ({ email, password }) => {
   }
 
   if (!authData.user || !authData.session) {
-    throw new Error("Unable to authenticate user");
+    throw new Error(
+      "Unable to authenticate user"
+    );
   }
 
   // 2. Get application user profile
@@ -36,7 +39,9 @@ const loginUser = async ({ email, password }) => {
   }
 
   if (!user) {
-    throw new Error("User profile not found");
+    throw new Error(
+      "User profile not found"
+    );
   }
 
   // 3. Check account status
@@ -61,8 +66,10 @@ const loginUser = async ({ email, password }) => {
   // 4. Return authenticated user
   return {
     user,
-    token: authData.session.access_token,
-    refreshToken: authData.session.refresh_token,
+    token:
+      authData.session.access_token,
+    refreshToken:
+      authData.session.refresh_token,
   };
 };
 
@@ -80,28 +87,27 @@ const registerUser = async ({
   license_number,
   bio,
 }) => {
-  // Only patient and doctor registration are allowed
-  if (!["patient", "doctor"].includes(role)) {
+  // Only patient and doctor registration
+  // are allowed
+  if (
+    !["patient", "doctor"].includes(role)
+  ) {
     throw new Error(
       "Invalid registration role"
     );
   }
 
-  // Doctors require a specialty
-  if (role === "doctor" && !specialty_id) {
+  // Doctors must select a specialty
+  if (
+    role === "doctor" &&
+    !specialty_id
+  ) {
     throw new Error(
       "Specialty is required for doctor registration"
     );
   }
 
-  // Patients should not create doctor profile fields
-  if (role === "patient") {
-    specialty_id = null;
-    license_number = null;
-    bio = null;
-  }
-
-  // Doctors are pending until activated by admin
+  // Doctors require admin approval
   const status =
     role === "doctor"
       ? "pending"
@@ -110,18 +116,26 @@ const registerUser = async ({
   let authUserId = null;
 
   try {
-    // 1. Create Supabase Auth account
+    // 1. Create user in Supabase Auth
+    //
+    // Admin client is required because this
+    // operation is performed server-side.
     const {
       data: authData,
       error: authError,
-    } = await supabase.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-    });
+    } =
+      await supabaseAdmin.auth.admin.createUser(
+        {
+          email,
+          password,
+          email_confirm: true,
+        }
+      );
 
     if (authError) {
-      throw new Error(authError.message);
+      throw new Error(
+        authError.message
+      );
     }
 
     if (!authData.user) {
@@ -130,19 +144,25 @@ const registerUser = async ({
       );
     }
 
-    authUserId = authData.user.id;
+    authUserId =
+      authData.user.id;
+
 
     // 2. Create user profile
+    //
+    // IMPORTANT:
+    // Use supabaseAdmin here because RLS
+    // is enabled on the users table.
     const {
       data: user,
       error: userError,
-    } = await supabase
+    } = await supabaseAdmin
       .from("users")
       .insert({
         id: authUserId,
         full_name,
         email,
-        phone,
+        phone: phone || null,
         role,
         status,
       })
@@ -150,15 +170,21 @@ const registerUser = async ({
       .single();
 
     if (userError) {
-      throw new Error(userError.message);
+      throw new Error(
+        userError.message
+      );
     }
+
 
     // 3. Create doctor profile
     if (role === "doctor") {
+      // IMPORTANT:
+      // Use supabaseAdmin because RLS
+      // is enabled on the doctors table.
       const {
         data: doctor,
         error: doctorError,
-      } = await supabase
+      } = await supabaseAdmin
         .from("doctors")
         .insert({
           user_id: authUserId,
@@ -182,15 +208,19 @@ const registerUser = async ({
       };
     }
 
+
     // 4. Patient registration
     return {
       user,
     };
+
   } catch (error) {
-    // Rollback Supabase Auth account
-    // if any profile creation fails
+    // Rollback:
+    // If user profile or doctor profile
+    // creation fails, delete the Supabase
+    // Auth account.
     if (authUserId) {
-      await supabase.auth.admin.deleteUser(
+      await supabaseAdmin.auth.admin.deleteUser(
         authUserId
       );
     }
@@ -203,8 +233,8 @@ const registerUser = async ({
 /**
  * Backward-compatible patient registration
  *
- * This allows any existing code that still calls
- * registerPatient() to continue working.
+ * Keeps existing code working if anything
+ * still calls registerPatient().
  */
 const registerPatient = async ({
   full_name,
