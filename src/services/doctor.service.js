@@ -95,12 +95,8 @@ const createDoctor = async ({
  * - Doctor
  * - Patient
  *
- * Includes the linked user's account status.
- *
- * Status values:
- * - active
- * - pending
- * - rejected
+ * Includes the account status
+ * from the linked users table.
  */
 const getDoctors = async () => {
   const {
@@ -167,7 +163,6 @@ const getDoctorDashboard = async (
         full_name,
         email,
         phone,
-        role,
         status
       ),
 
@@ -254,10 +249,7 @@ const getDoctorDashboard = async (
       count: "exact",
       head: true,
     })
-    .eq(
-      "doctor_id",
-      doctor.id
-    );
+    .eq("doctor_id", doctor.id);
 
   if (availabilityError) {
     throw new Error(
@@ -279,16 +271,14 @@ const getDoctorDashboard = async (
       bio: doctor.bio,
     },
 
-    appointments:
-      appointmentStats,
+    appointments: appointmentStats,
 
     today: {
       total: todayCount,
     },
 
     availability: {
-      days:
-        availabilityDays || 0,
+      days: availabilityDays || 0,
     },
   };
 };
