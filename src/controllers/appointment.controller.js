@@ -1,5 +1,8 @@
 const appointmentService = require("../services/appointment.service");
 
+/**
+ * Patient creates an appointment
+ */
 const createAppointment = async (req, res) => {
   try {
     const appointment =
@@ -20,6 +23,9 @@ const createAppointment = async (req, res) => {
   }
 };
 
+/**
+ * Patient views their own appointments
+ */
 const getPatientAppointments = async (req, res) => {
   try {
     const appointments =
@@ -42,12 +48,13 @@ const getPatientAppointments = async (req, res) => {
   }
 };
 
+/**
+ * Doctor views their own appointments
+ */
 const getDoctorAppointments = async (req, res) => {
   try {
     const appointments =
       await appointmentService.getDoctorAppointments(
-        req.params.doctorId,
-        req.query,
         req.user
       );
 
@@ -57,6 +64,11 @@ const getDoctorAppointments = async (req, res) => {
       data: appointments,
     });
   } catch (error) {
+    console.error(
+      "GET DOCTOR APPOINTMENTS ERROR:",
+      error
+    );
+
     res.status(403).json({
       message:
         "Failed to retrieve doctor appointments",
@@ -65,6 +77,9 @@ const getDoctorAppointments = async (req, res) => {
   }
 };
 
+/**
+ * Get a single appointment by ID
+ */
 const getAppointmentById = async (req, res) => {
   try {
     const appointment =
@@ -87,7 +102,13 @@ const getAppointmentById = async (req, res) => {
   }
 };
 
-const updateAppointmentStatus = async (req, res) => {
+/**
+ * Update appointment status
+ */
+const updateAppointmentStatus = async (
+  req,
+  res
+) => {
   try {
     const appointment =
       await appointmentService.updateAppointmentStatus(
@@ -110,6 +131,9 @@ const updateAppointmentStatus = async (req, res) => {
   }
 };
 
+/**
+ * Admin views all appointments
+ */
 const getAllAppointments = async (
   req,
   res
@@ -136,7 +160,6 @@ const getAllAppointments = async (
     });
   }
 };
-
 
 module.exports = {
   createAppointment,

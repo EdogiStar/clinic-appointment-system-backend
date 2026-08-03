@@ -6,6 +6,7 @@ const requireRole = require("../middleware/role.middleware");
 const {
   getPatientDashboard,
   getPatients,
+  getDoctorPatients,
   getDoctors,
   getDoctorAvailability,
   getDoctorSlots,
@@ -22,6 +23,18 @@ router.get(
   authenticate,
   requireRole("admin"),
   getPatients
+);
+
+/**
+ * Doctor
+ * Get patients who have appointments
+ * with the currently logged-in doctor
+ */
+router.get(
+  "/doctor",
+  authenticate,
+  requireRole("doctor"),
+  getDoctorPatients
 );
 
 /**

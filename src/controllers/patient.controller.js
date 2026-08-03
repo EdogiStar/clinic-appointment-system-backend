@@ -4,7 +4,10 @@ const slotService = require("../services/slot.service");
 /**
  * Get patient dashboard
  */
-const getPatientDashboard = async (req, res) => {
+const getPatientDashboard = async (
+  req,
+  res
+) => {
   try {
     const dashboard =
       await patientService.getPatientDashboard(
@@ -30,7 +33,10 @@ const getPatientDashboard = async (req, res) => {
  *
  * Admin only
  */
-const getPatients = async (req, res) => {
+const getPatients = async (
+  req,
+  res
+) => {
   try {
     const patients =
       await patientService.getPatients();
@@ -50,11 +56,49 @@ const getPatients = async (req, res) => {
 };
 
 /**
+ * Get patients who have appointments
+ * with the currently logged-in doctor
+ *
+ * Doctor only
+ */
+const getDoctorPatients = async (
+  req,
+  res
+) => {
+  try {
+    const patients =
+      await patientService.getDoctorPatients(
+        req.user.id
+      );
+
+    res.status(200).json({
+      message:
+        "Doctor patients retrieved successfully",
+      data: patients,
+    });
+  } catch (error) {
+    console.error(
+      "GET DOCTOR PATIENTS ERROR:",
+      error
+    );
+
+    res.status(500).json({
+      message:
+        "Failed to retrieve doctor patients",
+      error: error.message,
+    });
+  }
+};
+
+/**
  * Get doctors
  *
  * Patient only
  */
-const getDoctors = async (req, res) => {
+const getDoctors = async (
+  req,
+  res
+) => {
   try {
     const doctors =
       await patientService.getDoctors();
@@ -107,10 +151,18 @@ const getDoctorAvailability = async (
  *
  * Patient only
  */
-const getDoctorSlots = async (req, res) => {
+const getDoctorSlots = async (
+  req,
+  res
+) => {
   try {
-    const { doctorId } = req.params;
-    const { date } = req.query;
+    const {
+      doctorId,
+    } = req.params;
+
+    const {
+      date,
+    } = req.query;
 
     if (!date) {
       return res.status(400).json({
@@ -144,6 +196,7 @@ const getDoctorSlots = async (req, res) => {
 module.exports = {
   getPatientDashboard,
   getPatients,
+  getDoctorPatients,
   getDoctors,
   getDoctorAvailability,
   getDoctorSlots,

@@ -2,6 +2,11 @@ const supabaseAdmin = require("../config/supabaseAdmin");
 const slotService = require("./slot.service");
 const notificationService = require("./notification.service");
 
+/**
+ * Create appointment
+ *
+ * Patient only
+ */
 const createAppointment = async (
   {
     doctor_id,
@@ -132,7 +137,14 @@ const createAppointment = async (
   return appointment;
 };
 
-const getPatientAppointments = async (patientId) => {
+/**
+ * Get patient appointments
+ *
+ * Patient only
+ */
+const getPatientAppointments = async (
+  patientId
+) => {
   const {
     data,
     error,
@@ -175,37 +187,64 @@ const getPatientAppointments = async (patientId) => {
   return data;
 };
 
+/**
+ * Get appointments for the currently
+ * authenticated doctor
+ *
+ * Doctor only
+ */
 const getDoctorAppointments = async (
-  doctorId
+  currentUser
 ) => {
-  const { data, error } =
-    await supabaseAdmin
-      .from("appointments")
-      .select(`
-        *,
-        users:patient_id (
-          id,
-          full_name,
-          email,
-          phone
-        )
-      `)
-      .eq(
-        "doctor_id",
-        doctorId
+  // 1. Find the doctor profile
+  // belonging to the authenticated user
+  const {
+    data: doctor,
+    error: doctorError,
+  } = await supabaseAdmin
+    .from("doctors")
+    .select("id")
+    .eq("user_id", currentUser.id)
+    .maybeSingle();
+
+  if (doctorError) {
+    throw new Error(
+      doctorError.message
+    );
+  }
+
+  if (!doctor) {
+    throw new Error(
+      "Doctor profile not found"
+    );
+  }
+
+  // 2. Get appointments assigned
+  // to this doctor
+  const {
+    data,
+    error,
+  } = await supabaseAdmin
+    .from("appointments")
+    .select(`
+      *,
+      patient:patient_id (
+        id,
+        full_name,
+        email,
+        phone
       )
-      .order(
-        "appointment_date",
-        {
-          ascending: true,
-        }
-      )
-      .order(
-        "start_time",
-        {
-          ascending: true,
-        }
-      );
+    `)
+    .eq(
+      "doctor_id",
+      doctor.id
+    )
+    .order("appointment_date", {
+      ascending: true,
+    })
+    .order("start_time", {
+      ascending: true,
+    });
 
   if (error) {
     throw new Error(error.message);
@@ -214,6 +253,9 @@ const getDoctorAppointments = async (
   return data;
 };
 
+/**
+ * Get a single appointment by ID
+ */
 const getAppointmentById = async (
   appointmentId,
   currentUser
@@ -259,7 +301,8 @@ const getAppointmentById = async (
   const role =
     currentUser.profile.role;
 
-  // Patient can only view their own appointment
+  // Patient can only view
+  // their own appointment
   if (role === "patient") {
     if (
       appointment.patient_id !==
@@ -271,7 +314,8 @@ const getAppointmentById = async (
     }
   }
 
-  // Doctor can only view their assigned appointments
+  // Doctor can only view
+  // their assigned appointments
   if (role === "doctor") {
     const {
       data: doctor,
@@ -307,6 +351,9 @@ const getAppointmentById = async (
   return appointment;
 };
 
+/**
+ * Update appointment status
+ */
 const updateAppointmentStatus = async (
   appointmentId,
   status,
@@ -379,8 +426,7 @@ const updateAppointmentStatus = async (
         `${appointment.appointment_date}T${appointment.start_time}`
       );
 
-    const now =
-      new Date();
+    const now = new Date();
 
     if (
       appointmentStart <= now
@@ -403,8 +449,7 @@ const updateAppointmentStatus = async (
         `${appointment.appointment_date}T${appointment.end_time}`
       );
 
-    const now =
-      new Date();
+    const now = new Date();
 
     if (
       appointmentEnd > now
@@ -415,7 +460,8 @@ const updateAppointmentStatus = async (
     }
   }
 
-  // 6. Patient can only cancel their own appointment
+  // 6. Patient can only cancel
+  // their own appointment
   if (role === "patient") {
     if (
       appointment.patient_id !==
@@ -435,7 +481,8 @@ const updateAppointmentStatus = async (
     }
   }
 
-  // 7. Doctor can manage appointments assigned to them
+  // 7. Doctor can manage appointments
+  // assigned to them
   if (role === "doctor") {
     const {
       data: doctor,
@@ -605,6 +652,9 @@ const updateAppointmentStatus = async (
   return data;
 };
 
+/**
+ * Admin gets all appointments
+ */
 const getAllAppointments = async () => {
   const {
     data,

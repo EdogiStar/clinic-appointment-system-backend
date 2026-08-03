@@ -20,7 +20,9 @@ const {
 
 const router = express.Router();
 
-// Patient creates an appointment
+/**
+ * Patient creates an appointment
+ */
 router.post(
   "/",
   authenticate,
@@ -29,7 +31,9 @@ router.post(
   createAppointment
 );
 
-// Patient views their own appointments
+/**
+ * Patient views their own appointments
+ */
 router.get(
   "/patient",
   authenticate,
@@ -37,6 +41,9 @@ router.get(
   getPatientAppointments
 );
 
+/**
+ * Admin views all appointments
+ */
 router.get(
   "/admin",
   authenticate,
@@ -44,15 +51,31 @@ router.get(
   getAllAppointments
 );
 
-// Doctor views their appointments
+/**
+ * Doctor views their own appointments
+ *
+ * The backend automatically identifies
+ * the doctor using the authenticated user.
+ */
 router.get(
-  "/doctor/:doctorId",
+  "/doctor",
   authenticate,
-  requireRole("doctor", "admin"),
+  requireRole("doctor"),
   getDoctorAppointments
 );
 
-// Get a single appointment by ID
+/**
+ * Get a single appointment by ID
+ *
+ * Patient:
+ * - Can only view their own appointment
+ *
+ * Doctor:
+ * - Can only view appointments assigned to them
+ *
+ * Admin:
+ * - Can view any appointment
+ */
 router.get(
   "/:id",
   authenticate,
@@ -60,7 +83,9 @@ router.get(
   getAppointmentById
 );
 
-// Patient, doctor, or admin updates appointment status
+/**
+ * Patient, doctor, or admin updates appointment status
+ */
 router.patch(
   "/:id/status",
   authenticate,
