@@ -1,5 +1,9 @@
 const supabaseAdmin = require("../config/supabaseAdmin");
 
+/**
+ * Create a doctor
+ * Admin only
+ */
 const createDoctor = async ({
   full_name,
   email,
@@ -82,6 +86,7 @@ const createDoctor = async ({
   };
 };
 
+
 /**
  * Get all doctors
  *
@@ -89,6 +94,13 @@ const createDoctor = async ({
  * - Admin
  * - Doctor
  * - Patient
+ *
+ * Includes the linked user's account status.
+ *
+ * Status values:
+ * - active
+ * - pending
+ * - rejected
  */
 const getDoctors = async () => {
   const {
@@ -102,19 +114,27 @@ const getDoctors = async () => {
       specialty_id,
       license_number,
       bio,
+      created_at,
+      updated_at,
+
       user:user_id (
         id,
         full_name,
         email,
-        phone
+        phone,
+        role,
+        status,
+        created_at,
+        updated_at
       ),
+
       specialty:specialty_id (
         id,
         name
       )
     `)
-    .order("id", {
-      ascending: true,
+    .order("created_at", {
+      ascending: false,
     });
 
   if (error) {
@@ -124,7 +144,13 @@ const getDoctors = async () => {
   return doctors;
 };
 
-const getDoctorDashboard = async (userId) => {
+
+/**
+ * Get doctor dashboard
+ */
+const getDoctorDashboard = async (
+  userId
+) => {
   // Get doctor profile
   const {
     data: doctor,
@@ -135,12 +161,16 @@ const getDoctorDashboard = async (userId) => {
       id,
       license_number,
       bio,
+
       user:user_id (
         id,
         full_name,
         email,
-        phone
+        phone,
+        role,
+        status
       ),
+
       specialty:specialty_id (
         id,
         name
@@ -150,11 +180,15 @@ const getDoctorDashboard = async (userId) => {
     .maybeSingle();
 
   if (doctorError) {
-    throw new Error(doctorError.message);
+    throw new Error(
+      doctorError.message
+    );
   }
 
   if (!doctor) {
-    throw new Error("Doctor profile not found");
+    throw new Error(
+      "Doctor profile not found"
+    );
   }
 
   // Get doctor appointments
@@ -170,26 +204,32 @@ const getDoctorDashboard = async (userId) => {
     .eq("doctor_id", doctor.id);
 
   if (appointmentError) {
-    throw new Error(appointmentError.message);
+    throw new Error(
+      appointmentError.message
+    );
   }
 
   const appointmentStats = {
     total: appointments.length,
 
     pending: appointments.filter(
-      (item) => item.status === "pending"
+      (item) =>
+        item.status === "pending"
     ).length,
 
     confirmed: appointments.filter(
-      (item) => item.status === "confirmed"
+      (item) =>
+        item.status === "confirmed"
     ).length,
 
     completed: appointments.filter(
-      (item) => item.status === "completed"
+      (item) =>
+        item.status === "completed"
     ).length,
 
     cancelled: appointments.filter(
-      (item) => item.status === "cancelled"
+      (item) =>
+        item.status === "cancelled"
     ).length,
   };
 
@@ -198,10 +238,11 @@ const getDoctorDashboard = async (userId) => {
     .toISOString()
     .split("T")[0];
 
-  const todayCount = appointments.filter(
-    (item) =>
-      item.appointment_date === today
-  ).length;
+  const todayCount =
+    appointments.filter(
+      (item) =>
+        item.appointment_date === today
+    ).length;
 
   // Availability count
   const {
@@ -213,7 +254,10 @@ const getDoctorDashboard = async (userId) => {
       count: "exact",
       head: true,
     })
-    .eq("doctor_id", doctor.id);
+    .eq(
+      "doctor_id",
+      doctor.id
+    );
 
   if (availabilityError) {
     throw new Error(
@@ -227,6 +271,7 @@ const getDoctorDashboard = async (userId) => {
       name: doctor.user.full_name,
       email: doctor.user.email,
       phone: doctor.user.phone,
+      status: doctor.user.status,
       specialty:
         doctor.specialty?.name,
       license_number:
@@ -234,18 +279,24 @@ const getDoctorDashboard = async (userId) => {
       bio: doctor.bio,
     },
 
-    appointments: appointmentStats,
+    appointments:
+      appointmentStats,
 
     today: {
       total: todayCount,
     },
 
     availability: {
-      days: availabilityDays || 0,
+      days:
+        availabilityDays || 0,
     },
   };
 };
 
+
+/**
+ * Get doctor appointments
+ */
 const getDoctorAppointments = async (
   userId
 ) => {
@@ -308,6 +359,7 @@ const getDoctorAppointments = async (
 
   return appointments;
 };
+
 
 module.exports = {
   createDoctor,
