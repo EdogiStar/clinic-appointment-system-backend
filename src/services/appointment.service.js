@@ -1,6 +1,13 @@
 const supabaseAdmin = require("../config/supabaseAdmin");
+
 const slotService = require("./slot.service");
+
 const notificationService = require("./notification.service");
+
+const {
+  APPOINTMENT_DURATION,
+  timeToMinutes,
+} = slotService;
 
 /**
  * Create appointment
@@ -17,44 +24,84 @@ const createAppointment = async (
   },
   currentUser
 ) => {
-  // 1. Prevent booking appointments in the past
-  const appointmentStart = new Date(
-    `${appointment_date}T${start_time}`
-  );
+  // 1. Validate appointment duration
+
+  const startMinutes =
+    timeToMinutes(start_time);
+
+  const endMinutes =
+    timeToMinutes(end_time);
+
+  if (
+    endMinutes <= startMinutes
+  ) {
+    throw new Error(
+      "Appointment end time must be after the start time"
+    );
+  }
+
+  if (
+    endMinutes - startMinutes !==
+    APPOINTMENT_DURATION
+  ) {
+    throw new Error(
+      `Appointments must be exactly ${APPOINTMENT_DURATION} minutes long`
+    );
+  }
+
+  // 2. Prevent booking appointments
+  // in the past
+
+  const appointmentStart =
+    new Date(
+      `${appointment_date}T${start_time}`
+    );
 
   const now = new Date();
 
-  if (appointmentStart <= now) {
+  if (
+    appointmentStart <= now
+  ) {
     throw new Error(
       "You cannot book an appointment in the past"
     );
   }
 
-  // 2. Check that the doctor exists
+  // 3. Check that the doctor exists
+
   const {
     data: doctor,
     error: doctorError,
-  } = await supabaseAdmin
-    .from("doctors")
-    .select(`
-      id,
-      user_id,
-      users:user_id (
-        full_name
+  } =
+    await supabaseAdmin
+      .from("doctors")
+      .select(`
+        id,
+        user_id,
+        users:user_id (
+          full_name
+        )
+      `)
+      .eq(
+        "id",
+        doctor_id
       )
-    `)
-    .eq("id", doctor_id)
-    .maybeSingle();
+      .maybeSingle();
 
   if (doctorError) {
-    throw new Error(doctorError.message);
+    throw new Error(
+      doctorError.message
+    );
   }
 
   if (!doctor) {
-    throw new Error("Doctor not found");
+    throw new Error(
+      "Doctor not found"
+    );
   }
 
-  // 3. Validate selected slot
+  // 4. Validate selected slot
+
   const availableSlots =
     await slotService.generateAvailableSlots(
       doctor_id,
@@ -64,58 +111,88 @@ const createAppointment = async (
   const selectedSlot =
     start_time.slice(0, 5);
 
-  if (!availableSlots.includes(selectedSlot)) {
+  if (
+    !availableSlots.includes(
+      selectedSlot
+    )
+  ) {
     throw new Error(
       "Selected time slot is not available"
     );
   }
 
-  // 4. Check for overlapping appointments
+  // 5. Check for overlapping appointments
+
   const {
     data: conflictingAppointments,
     error: conflictError,
-  } = await supabaseAdmin
-    .from("appointments")
-    .select("id")
-    .eq("doctor_id", doctor_id)
-    .eq(
-      "appointment_date",
-      appointment_date
-    )
-    .neq("status", "cancelled")
-    .lt("start_time", end_time)
-    .gt("end_time", start_time);
+  } =
+    await supabaseAdmin
+      .from("appointments")
+      .select("id")
+      .eq(
+        "doctor_id",
+        doctor_id
+      )
+      .eq(
+        "appointment_date",
+        appointment_date
+      )
+      .neq(
+        "status",
+        "cancelled"
+      )
+      .lt(
+        "start_time",
+        end_time
+      )
+      .gt(
+        "end_time",
+        start_time
+      );
 
   if (conflictError) {
-    throw new Error(conflictError.message);
+    throw new Error(
+      conflictError.message
+    );
   }
 
   if (
     conflictingAppointments &&
-    conflictingAppointments.length > 0
+    conflictingAppointments.length >
+      0
   ) {
     throw new Error(
       "Doctor already has an appointment at this time"
     );
   }
 
-  // 5. Create appointment
+  // 6. Create appointment
+
   const {
     data: appointment,
     error: appointmentError,
-  } = await supabaseAdmin
-    .from("appointments")
-    .insert({
-      patient_id: currentUser.id,
-      doctor_id,
-      appointment_date,
-      start_time,
-      end_time,
-      reason,
-      status: "pending",
-    })
-    .select()
-    .single();
+  } =
+    await supabaseAdmin
+      .from("appointments")
+      .insert({
+        patient_id:
+          currentUser.id,
+
+        doctor_id,
+
+        appointment_date,
+
+        start_time,
+
+        end_time,
+
+        reason,
+
+        status: "pending",
+      })
+      .select()
+      .single();
 
   if (appointmentError) {
     throw new Error(
@@ -123,16 +200,25 @@ const createAppointment = async (
     );
   }
 
-  // 6. Notify doctor
-  await notificationService.createNotification({
-    user_id: doctor.user_id,
-    title: "New Appointment",
-    message: `You have a new appointment request for ${appointment_date} at ${start_time.slice(
-      0,
-      5
-    )}.`,
-    type: "appointment_created",
-  });
+  // 7. Notify doctor
+
+  await notificationService.createNotification(
+    {
+      user_id:
+        doctor.user_id,
+
+      title:
+        "New Appointment",
+
+      message: `You have a new appointment request for ${appointment_date} at ${start_time.slice(
+        0,
+        5
+      )}.`,
+
+      type:
+        "appointment_created",
+    }
+  );
 
   return appointment;
 };
@@ -148,48 +234,60 @@ const getPatientAppointments = async (
   const {
     data,
     error,
-  } = await supabaseAdmin
-    .from("appointments")
-    .select(`
-      *,
-      patient:patient_id (
-        id,
-        full_name,
-        email,
-        phone
-      ),
-      doctor:doctor_id (
-        id,
-        user_id,
-        specialty_id,
-        license_number,
-        bio,
-        users:user_id (
+  } =
+    await supabaseAdmin
+      .from("appointments")
+      .select(`
+        *,
+        patient:patient_id (
           id,
           full_name,
           email,
           phone
+        ),
+        doctor:doctor_id (
+          id,
+          user_id,
+          specialty_id,
+          license_number,
+          bio,
+          users:user_id (
+            id,
+            full_name,
+            email,
+            phone
+          )
         )
+      `)
+      .eq(
+        "patient_id",
+        patientId
       )
-    `)
-    .eq("patient_id", patientId)
-    .order("appointment_date", {
-      ascending: true,
-    })
-    .order("start_time", {
-      ascending: true,
-    });
+      .order(
+        "appointment_date",
+        {
+          ascending: true,
+        }
+      )
+      .order(
+        "start_time",
+        {
+          ascending: true,
+        }
+      );
 
   if (error) {
-    throw new Error(error.message);
+    throw new Error(
+      error.message
+    );
   }
 
   return data;
 };
 
 /**
- * Get appointments for the currently
- * authenticated doctor
+ * Get appointments for the
+ * currently authenticated doctor
  *
  * Doctor only
  */
@@ -198,14 +296,19 @@ const getDoctorAppointments = async (
 ) => {
   // 1. Find the doctor profile
   // belonging to the authenticated user
+
   const {
     data: doctor,
     error: doctorError,
-  } = await supabaseAdmin
-    .from("doctors")
-    .select("id")
-    .eq("user_id", currentUser.id)
-    .maybeSingle();
+  } =
+    await supabaseAdmin
+      .from("doctors")
+      .select("id")
+      .eq(
+        "user_id",
+        currentUser.id
+      )
+      .maybeSingle();
 
   if (doctorError) {
     throw new Error(
@@ -221,33 +324,43 @@ const getDoctorAppointments = async (
 
   // 2. Get appointments assigned
   // to this doctor
+
   const {
     data,
     error,
-  } = await supabaseAdmin
-    .from("appointments")
-    .select(`
-      *,
-      patient:patient_id (
-        id,
-        full_name,
-        email,
-        phone
+  } =
+    await supabaseAdmin
+      .from("appointments")
+      .select(`
+        *,
+        patient:patient_id (
+          id,
+          full_name,
+          email,
+          phone
+        )
+      `)
+      .eq(
+        "doctor_id",
+        doctor.id
       )
-    `)
-    .eq(
-      "doctor_id",
-      doctor.id
-    )
-    .order("appointment_date", {
-      ascending: true,
-    })
-    .order("start_time", {
-      ascending: true,
-    });
+      .order(
+        "appointment_date",
+        {
+          ascending: true,
+        }
+      )
+      .order(
+        "start_time",
+        {
+          ascending: true,
+        }
+      );
 
   if (error) {
-    throw new Error(error.message);
+    throw new Error(
+      error.message
+    );
   }
 
   return data;
@@ -263,32 +376,35 @@ const getAppointmentById = async (
   const {
     data: appointment,
     error,
-  } = await supabaseAdmin
-    .from("appointments")
-    .select(`
-      *,
-      patient:patient_id (
-        id,
-        full_name,
-        email,
-        phone
-      ),
-      doctor:doctor_id (
-        id,
-        user_id,
-        specialty_id,
-        license_number,
-        bio
+  } =
+    await supabaseAdmin
+      .from("appointments")
+      .select(`
+        *,
+        patient:patient_id (
+          id,
+          full_name,
+          email,
+          phone
+        ),
+        doctor:doctor_id (
+          id,
+          user_id,
+          specialty_id,
+          license_number,
+          bio
+        )
+      `)
+      .eq(
+        "id",
+        appointmentId
       )
-    `)
-    .eq(
-      "id",
-      appointmentId
-    )
-    .maybeSingle();
+      .maybeSingle();
 
   if (error) {
-    throw new Error(error.message);
+    throw new Error(
+      error.message
+    );
   }
 
   if (!appointment) {
@@ -303,7 +419,10 @@ const getAppointmentById = async (
 
   // Patient can only view
   // their own appointment
-  if (role === "patient") {
+
+  if (
+    role === "patient"
+  ) {
     if (
       appointment.patient_id !==
       currentUser.id
@@ -316,18 +435,22 @@ const getAppointmentById = async (
 
   // Doctor can only view
   // their assigned appointments
-  if (role === "doctor") {
+
+  if (
+    role === "doctor"
+  ) {
     const {
       data: doctor,
       error: doctorError,
-    } = await supabaseAdmin
-      .from("doctors")
-      .select("id")
-      .eq(
-        "user_id",
-        currentUser.id
-      )
-      .maybeSingle();
+    } =
+      await supabaseAdmin
+        .from("doctors")
+        .select("id")
+        .eq(
+          "user_id",
+          currentUser.id
+        )
+        .maybeSingle();
 
     if (doctorError) {
       throw new Error(
@@ -360,17 +483,19 @@ const updateAppointmentStatus = async (
   currentUser
 ) => {
   // 1. Get appointment
+
   const {
     data: appointment,
     error: appointmentError,
-  } = await supabaseAdmin
-    .from("appointments")
-    .select("*")
-    .eq(
-      "id",
-      appointmentId
-    )
-    .maybeSingle();
+  } =
+    await supabaseAdmin
+      .from("appointments")
+      .select("*")
+      .eq(
+        "id",
+        appointmentId
+      )
+      .maybeSingle();
 
   if (appointmentError) {
     throw new Error(
@@ -385,6 +510,7 @@ const updateAppointmentStatus = async (
   }
 
   // 2. Validate status transition
+
   const currentStatus =
     appointment.status;
 
@@ -393,11 +519,14 @@ const updateAppointmentStatus = async (
       "confirmed",
       "cancelled",
     ],
+
     confirmed: [
       "completed",
       "cancelled",
     ],
+
     completed: [],
+
     cancelled: [],
   };
 
@@ -412,10 +541,12 @@ const updateAppointmentStatus = async (
   }
 
   // 3. Get current user's role
+
   const role =
     currentUser.profile.role;
 
   // 4. Prevent confirming a past appointment
+
   if (
     status === "confirmed" &&
     appointment.appointment_date &&
@@ -439,6 +570,7 @@ const updateAppointmentStatus = async (
 
   // 5. Prevent completing an appointment
   // before its scheduled end time
+
   if (
     status === "completed" &&
     appointment.appointment_date &&
@@ -462,7 +594,10 @@ const updateAppointmentStatus = async (
 
   // 6. Patient can only cancel
   // their own appointment
-  if (role === "patient") {
+
+  if (
+    role === "patient"
+  ) {
     if (
       appointment.patient_id !==
       currentUser.id
@@ -483,18 +618,22 @@ const updateAppointmentStatus = async (
 
   // 7. Doctor can manage appointments
   // assigned to them
-  if (role === "doctor") {
+
+  if (
+    role === "doctor"
+  ) {
     const {
       data: doctor,
       error: doctorError,
-    } = await supabaseAdmin
-      .from("doctors")
-      .select("id")
-      .eq(
-        "user_id",
-        currentUser.id
-      )
-      .maybeSingle();
+    } =
+      await supabaseAdmin
+        .from("doctors")
+        .select("id")
+        .eq(
+          "user_id",
+          currentUser.id
+        )
+        .maybeSingle();
 
     if (doctorError) {
       throw new Error(
@@ -530,27 +669,33 @@ const updateAppointmentStatus = async (
   }
 
   // 8. Admin can update any appointment
-  if (role === "admin") {
+
+  if (
+    role === "admin"
+  ) {
     // No additional restrictions
   }
 
   // 9. Update appointment
+
   const {
     data,
     error,
-  } = await supabaseAdmin
-    .from("appointments")
-    .update({
-      status,
-      updated_at:
-        new Date().toISOString(),
-    })
-    .eq(
-      "id",
-      appointmentId
-    )
-    .select()
-    .single();
+  } =
+    await supabaseAdmin
+      .from("appointments")
+      .update({
+        status,
+
+        updated_at:
+          new Date().toISOString(),
+      })
+      .eq(
+        "id",
+        appointmentId
+      )
+      .select()
+      .single();
 
   if (error) {
     throw new Error(
@@ -562,24 +707,31 @@ const updateAppointmentStatus = async (
   // based on the new status
 
   // Appointment confirmed
+
   if (
     status === "confirmed"
   ) {
-    await notificationService.createNotification({
-      user_id:
-        appointment.patient_id,
-      title:
-        "Appointment Confirmed",
-      message: `Your appointment on ${appointment.appointment_date} at ${appointment.start_time.slice(
-        0,
-        5
-      )} has been confirmed.`,
-      type:
-        "appointment_confirmed",
-    });
+    await notificationService.createNotification(
+      {
+        user_id:
+          appointment.patient_id,
+
+        title:
+          "Appointment Confirmed",
+
+        message: `Your appointment on ${appointment.appointment_date} at ${appointment.start_time.slice(
+          0,
+          5
+        )} has been confirmed.`,
+
+        type:
+          "appointment_confirmed",
+      }
+    );
   }
 
   // Appointment cancelled
+
   if (
     status === "cancelled"
   ) {
@@ -590,17 +742,19 @@ const updateAppointmentStatus = async (
     ) {
       // Patient cancelled
       // Notify doctor
+
       const {
         data: doctor,
         error: doctorError,
-      } = await supabaseAdmin
-        .from("doctors")
-        .select("user_id")
-        .eq(
-          "id",
-          appointment.doctor_id
-        )
-        .maybeSingle();
+      } =
+        await supabaseAdmin
+          .from("doctors")
+          .select("user_id")
+          .eq(
+            "id",
+            appointment.doctor_id
+          )
+          .maybeSingle();
 
       if (doctorError) {
         throw new Error(
@@ -613,40 +767,52 @@ const updateAppointmentStatus = async (
     } else {
       // Doctor or admin cancelled
       // Notify patient
+
       recipientUserId =
         appointment.patient_id;
     }
 
-    await notificationService.createNotification({
-      user_id:
-        recipientUserId,
-      title:
-        "Appointment Cancelled",
-      message: `The appointment scheduled for ${appointment.appointment_date} at ${appointment.start_time.slice(
-        0,
-        5
-      )} has been cancelled.`,
-      type:
-        "appointment_cancelled",
-    });
+    await notificationService.createNotification(
+      {
+        user_id:
+          recipientUserId,
+
+        title:
+          "Appointment Cancelled",
+
+        message: `The appointment scheduled for ${appointment.appointment_date} at ${appointment.start_time.slice(
+          0,
+          5
+        )} has been cancelled.`,
+
+        type:
+          "appointment_cancelled",
+      }
+    );
   }
 
   // Appointment completed
+
   if (
     status === "completed"
   ) {
-    await notificationService.createNotification({
-      user_id:
-        appointment.patient_id,
-      title:
-        "Appointment Completed",
-      message: `Your appointment on ${appointment.appointment_date} at ${appointment.start_time.slice(
-        0,
-        5
-      )} has been marked as completed.`,
-      type:
-        "appointment_completed",
-    });
+    await notificationService.createNotification(
+      {
+        user_id:
+          appointment.patient_id,
+
+        title:
+          "Appointment Completed",
+
+        message: `Your appointment on ${appointment.appointment_date} at ${appointment.start_time.slice(
+          0,
+          5
+        )} has been marked as completed.`,
+
+        type:
+          "appointment_completed",
+      }
+    );
   }
 
   return data;
@@ -659,39 +825,48 @@ const getAllAppointments = async () => {
   const {
     data,
     error,
-  } = await supabaseAdmin
-    .from("appointments")
-    .select(`
-      *,
-      patient:patient_id (
-        id,
-        full_name,
-        email,
-        phone
-      ),
-      doctor:doctor_id (
-        id,
-        user_id,
-        specialty_id,
-        license_number,
-        bio,
-        users:user_id (
+  } =
+    await supabaseAdmin
+      .from("appointments")
+      .select(`
+        *,
+        patient:patient_id (
           id,
           full_name,
           email,
           phone
+        ),
+        doctor:doctor_id (
+          id,
+          user_id,
+          specialty_id,
+          license_number,
+          bio,
+          users:user_id (
+            id,
+            full_name,
+            email,
+            phone
+          )
         )
+      `)
+      .order(
+        "appointment_date",
+        {
+          ascending: true,
+        }
       )
-    `)
-    .order("appointment_date", {
-      ascending: true,
-    })
-    .order("start_time", {
-      ascending: true,
-    });
+      .order(
+        "start_time",
+        {
+          ascending: true,
+        }
+      );
 
   if (error) {
-    throw new Error(error.message);
+    throw new Error(
+      error.message
+    );
   }
 
   return data;

@@ -1,36 +1,52 @@
 const Joi = require("joi");
 
-const createAppointmentSchema = Joi.object({
-  doctor_id: Joi.string().uuid().required(),
+const createAppointmentSchema =
+  Joi.object({
+    doctor_id:
+      Joi.string()
+        .uuid()
+        .required(),
 
-  appointment_date: Joi.date()
-    .iso()
-    .required(),
+    appointment_date:
+      Joi.string()
+        .pattern(
+          /^\d{4}-\d{2}-\d{2}$/
+        )
+        .required(),
 
-  start_time: Joi.string()
-    .pattern(/^([01]\d|2[0-3]):([0-5]\d)$/)
-    .required(),
+    start_time:
+      Joi.string()
+        .pattern(
+          /^([01]\d|2[0-3]):([0-5]\d)$/
+        )
+        .required(),
 
-  end_time: Joi.string()
-    .pattern(/^([01]\d|2[0-3]):([0-5]\d)$/)
-    .required(),
+    end_time:
+      Joi.string()
+        .pattern(
+          /^([01]\d|2[0-3]):([0-5]\d)$/
+        )
+        .required(),
 
-  reason: Joi.string()
-    .trim()
-    .max(500)
-    .allow("", null),
-});
+    reason:
+      Joi.string()
+        .trim()
+        .max(500)
+        .allow("", null),
+  });
 
-const updateAppointmentSchema = Joi.object({
-  status: Joi.string()
-    .valid(
-      "pending",
-      "confirmed",
-      "completed",
-      "cancelled"
-    )
-    .required(),
-});
+const updateAppointmentSchema =
+  Joi.object({
+    status:
+      Joi.string()
+        .valid(
+          "pending",
+          "confirmed",
+          "completed",
+          "cancelled"
+        )
+        .required(),
+  });
 
 module.exports = {
   createAppointmentSchema,

@@ -12,6 +12,7 @@ const adminRoutes = require("./routes/admin.routes");
 const patientRoutes = require("./routes/patient.routes");
 const notificationRoutes = require("./routes/notification.routes");
 const dashboardRoutes = require("./routes/dashboard.routes");
+const slotRoutes = require("./routes/slot.routes");
 
 
 const app = express();
@@ -36,6 +37,10 @@ app.use("/api/notifications", notificationRoutes);
 app.use(
   "/api/dashboard",
   dashboardRoutes
+);
+app.use(
+  "/api/slots",
+  slotRoutes
 );
 
 const PORT = process.env.PORT || 5000;
