@@ -1,5 +1,6 @@
 const slotService = require("../services/slot.service");
 
+
 /**
  * Get available appointment slots
  * for a doctor on a specific date
