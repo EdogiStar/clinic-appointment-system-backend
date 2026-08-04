@@ -1,7 +1,13 @@
 const appointmentService = require("../services/appointment.service");
 
 /**
- * Patient creates an appointment
+ * Create an appointment
+ *
+ * Patient:
+ * - Books an appointment for themselves
+ *
+ * Admin:
+ * - Books an appointment on behalf of a patient
  */
 const createAppointment = async (req, res) => {
   try {
@@ -12,12 +18,19 @@ const createAppointment = async (req, res) => {
       );
 
     res.status(201).json({
-      message: "Appointment created successfully",
+      message:
+        "Appointment created successfully",
       data: appointment,
     });
   } catch (error) {
+    console.error(
+      "CREATE APPOINTMENT ERROR:",
+      error
+    );
+
     res.status(400).json({
-      message: "Failed to create appointment",
+      message:
+        "Failed to create appointment",
       error: error.message,
     });
   }
@@ -26,7 +39,10 @@ const createAppointment = async (req, res) => {
 /**
  * Patient views their own appointments
  */
-const getPatientAppointments = async (req, res) => {
+const getPatientAppointments = async (
+  req,
+  res
+) => {
   try {
     const appointments =
       await appointmentService.getPatientAppointments(
@@ -51,7 +67,10 @@ const getPatientAppointments = async (req, res) => {
 /**
  * Doctor views their own appointments
  */
-const getDoctorAppointments = async (req, res) => {
+const getDoctorAppointments = async (
+  req,
+  res
+) => {
   try {
     const appointments =
       await appointmentService.getDoctorAppointments(
@@ -80,7 +99,10 @@ const getDoctorAppointments = async (req, res) => {
 /**
  * Get a single appointment by ID
  */
-const getAppointmentById = async (req, res) => {
+const getAppointmentById = async (
+  req,
+  res
+) => {
   try {
     const appointment =
       await appointmentService.getAppointmentById(

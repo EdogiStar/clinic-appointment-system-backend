@@ -2,16 +2,27 @@ const Joi = require("joi");
 
 const createAppointmentSchema =
   Joi.object({
+    /**
+     * Required when an admin
+     * creates an appointment.
+     *
+     * Optional for patients because
+     * the backend automatically uses
+     * the authenticated patient's ID.
+     */
+    patient_id:
+      Joi.string()
+        .uuid()
+        .optional(),
+
     doctor_id:
       Joi.string()
         .uuid()
         .required(),
 
     appointment_date:
-      Joi.string()
-        .pattern(
-          /^\d{4}-\d{2}-\d{2}$/
-        )
+      Joi.date()
+        .iso()
         .required(),
 
     start_time:

@@ -21,12 +21,18 @@ const {
 const router = express.Router();
 
 /**
- * Patient creates an appointment
+ * Create appointment
+ *
+ * Patient:
+ * - Books for themselves
+ *
+ * Admin:
+ * - Books on behalf of a patient
  */
 router.post(
   "/",
   authenticate,
-  requireRole("patient"),
+  requireRole("patient", "admin"),
   validate(createAppointmentSchema),
   createAppointment
 );
@@ -79,17 +85,26 @@ router.get(
 router.get(
   "/:id",
   authenticate,
-  requireRole("patient", "doctor", "admin"),
+  requireRole(
+    "patient",
+    "doctor",
+    "admin"
+  ),
   getAppointmentById
 );
 
 /**
- * Patient, doctor, or admin updates appointment status
+ * Patient, doctor, or admin
+ * updates appointment status
  */
 router.patch(
   "/:id/status",
   authenticate,
-  requireRole("patient", "doctor", "admin"),
+  requireRole(
+    "patient",
+    "doctor",
+    "admin"
+  ),
   validate(updateAppointmentSchema),
   updateAppointmentStatus
 );
