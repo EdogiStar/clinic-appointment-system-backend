@@ -17,27 +17,35 @@ const timeToMinutes = (time) => {
 };
 
 /**
- * Convert minutes back to HH:MM
+ * Convert minutes to HH:MM
  */
 const minutesToTime = (minutes) => {
-  const hours = Math.floor(minutes / 60);
+  const hours = Math.floor(
+    minutes / 60
+  );
+
   const mins = minutes % 60;
 
   return `${String(hours).padStart(
     2,
     "0"
-  )}:${String(mins).padStart(2, "0")}`;
+  )}:${String(mins).padStart(
+    2,
+    "0"
+  )}`;
 };
 
 /**
  * Get day name from YYYY-MM-DD
  *
+ * Example:
+ *
+ * 2026-08-10
+ * -> Monday
+ *
  * This avoids timezone issues caused by:
  *
  * new Date("YYYY-MM-DD")
- *
- * which can shift the date depending
- * on the server timezone.
  */
 const getDayName = (date) => {
   const [
@@ -70,25 +78,41 @@ const getDayName = (date) => {
  *
  * Example:
  *
- * Availability:
+ * Doctor availability:
  * 09:00 - 12:00
  *
  * Generated slots:
- * 09:00
- * 09:30
- * 10:00
- * 10:30
- * 11:00
- * 11:30
+ *
+ * {
+ *   start_time: "09:00",
+ *   end_time: "09:30"
+ * }
+ *
+ * {
+ *   start_time: "09:30",
+ *   end_time: "10:00"
+ * }
+ *
+ * {
+ *   start_time: "10:00",
+ *   end_time: "10:30"
+ * }
  */
 const generateAvailableSlots = async (
   doctorId,
   date
 ) => {
+  // ----------------------------------
+  // 1. Get day of the week
+  // ----------------------------------
+
   const dayOfWeek =
     getDayName(date);
 
-  // 1. Get doctor's availability
+  // ----------------------------------
+  // 2. Get doctor's availability
+  // ----------------------------------
+
   const {
     data: availability,
     error: availabilityError,
@@ -97,7 +121,13 @@ const generateAvailableSlots = async (
       .from(
         "doctor_availabilities"
       )
-      .select("*")
+      .select(`
+        id,
+        doctor_id,
+        day_of_week,
+        start_time,
+        end_time
+      `)
       .eq(
         "doctor_id",
         doctorId
@@ -120,7 +150,10 @@ const generateAvailableSlots = async (
     return [];
   }
 
-  // 2. Generate all possible slots
+  // ----------------------------------
+  // 3. Generate all possible slots
+  // ----------------------------------
+
   const slots = [];
 
   let current =
@@ -128,7 +161,7 @@ const generateAvailableSlots = async (
       availability.start_time
     );
 
-  const end =
+  const availabilityEnd =
     timeToMinutes(
       availability.end_time
     );
@@ -136,26 +169,41 @@ const generateAvailableSlots = async (
   while (
     current +
       APPOINTMENT_DURATION <=
-    end
+    availabilityEnd
   ) {
-    slots.push(
-      minutesToTime(current)
-    );
+    const slotStart =
+      minutesToTime(current);
+
+    const slotEnd =
+      minutesToTime(
+        current +
+          APPOINTMENT_DURATION
+      );
+
+    slots.push({
+      start_time: slotStart,
+      end_time: slotEnd,
+    });
 
     current +=
       APPOINTMENT_DURATION;
   }
 
-  // 3. Get existing appointments
+  // ----------------------------------
+  // 4. Get existing appointments
+  // ----------------------------------
+
   const {
     data: appointments,
     error: appointmentError,
   } =
     await supabaseAdmin
       .from("appointments")
-      .select(
-        "start_time, end_time, status"
-      )
+      .select(`
+        start_time,
+        end_time,
+        status
+      `)
       .eq(
         "doctor_id",
         doctorId
@@ -175,16 +223,22 @@ const generateAvailableSlots = async (
     );
   }
 
-  // 4. Remove overlapping slots
+  // ----------------------------------
+  // 5. Remove conflicting slots
+  // ----------------------------------
+
   const availableSlots =
     slots.filter(
       (slot) => {
         const slotStart =
-          timeToMinutes(slot);
+          timeToMinutes(
+            slot.start_time
+          );
 
         const slotEnd =
-          slotStart +
-          APPOINTMENT_DURATION;
+          timeToMinutes(
+            slot.end_time
+          );
 
         const hasConflict =
           appointments.some(
@@ -199,6 +253,22 @@ const generateAvailableSlots = async (
                   appointment.end_time
                 );
 
+              /*
+               * Check if the generated
+               * slot overlaps an existing
+               * appointment.
+               *
+               * Example:
+               *
+               * Slot:
+               * 09:00 - 09:30
+               *
+               * Existing:
+               * 09:15 - 09:45
+               *
+               * Result:
+               * Conflict
+               */
               return (
                 slotStart <
                   appointmentEnd &&
@@ -212,11 +282,16 @@ const generateAvailableSlots = async (
       }
     );
 
+  // ----------------------------------
+  // 6. Return available slots
+  // ----------------------------------
+
   return availableSlots;
 };
 
 module.exports = {
   APPOINTMENT_DURATION,
   timeToMinutes,
+  minutesToTime,
   generateAvailableSlots,
 };
