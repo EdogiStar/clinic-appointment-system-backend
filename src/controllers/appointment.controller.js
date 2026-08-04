@@ -11,6 +11,16 @@ const appointmentService = require("../services/appointment.service");
  */
 const createAppointment = async (req, res) => {
   try {
+    console.log(
+      "CREATE APPOINTMENT REQUEST:",
+      req.body
+    );
+
+    console.log(
+      "CURRENT USER:",
+      req.user
+    );
+
     const appointment =
       await appointmentService.createAppointment(
         req.body,
@@ -18,6 +28,7 @@ const createAppointment = async (req, res) => {
       );
 
     res.status(201).json({
+      success: true,
       message:
         "Appointment created successfully",
       data: appointment,
@@ -29,9 +40,26 @@ const createAppointment = async (req, res) => {
     );
 
     res.status(400).json({
+      success: false,
+
       message:
         "Failed to create appointment",
-      error: error.message,
+
+      error:
+        error?.message ||
+        "Unknown appointment creation error",
+
+      details:
+        error?.details ||
+        null,
+
+      hint:
+        error?.hint ||
+        null,
+
+      code:
+        error?.code ||
+        null,
     });
   }
 };
