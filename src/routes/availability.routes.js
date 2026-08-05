@@ -7,6 +7,7 @@ const validate = require("../middleware/validate.middleware");
 const {
   createAvailability,
   getDoctorAvailability,
+  getMyAvailability,
   updateAvailability,
   deleteAvailability,
 } = require("../controllers/availability.controller");
@@ -18,7 +19,36 @@ const {
 
 const router = express.Router();
 
-// Create availability
+/**
+ * ==========================================
+ * Doctor Availability Routes
+ * ==========================================
+ */
+
+/**
+ * Get availability for the logged-in doctor
+ * Doctor/Admin only
+ */
+router.get(
+  "/",
+  authenticate,
+  requireRole("doctor", "admin"),
+  getMyAvailability
+);
+
+/**
+ * Get availability for a specific doctor
+ * Public (used when patients book appointments)
+ */
+router.get(
+  "/doctor/:doctorId",
+  getDoctorAvailability
+);
+
+/**
+ * Create availability
+ * Doctor/Admin only
+ */
 router.post(
   "/",
   authenticate,
@@ -27,13 +57,10 @@ router.post(
   createAvailability
 );
 
-// Get doctor's availability
-router.get(
-  "/doctor/:doctorId",
-  getDoctorAvailability
-);
-
-// Update availability
+/**
+ * Update availability
+ * Doctor/Admin only
+ */
 router.patch(
   "/:id",
   authenticate,
@@ -42,7 +69,10 @@ router.patch(
   updateAvailability
 );
 
-// Delete availability
+/**
+ * Delete availability
+ * Doctor/Admin only
+ */
 router.delete(
   "/:id",
   authenticate,
