@@ -1,8 +1,6 @@
 const Joi = require("joi");
 
 const createAvailabilitySchema = Joi.object({
-  doctor_id: Joi.string().uuid().required(),
-
   day_of_week: Joi.string()
     .valid(
       "Monday",
