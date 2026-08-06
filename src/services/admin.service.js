@@ -39,17 +39,13 @@ const {
   count: doctorCount,
   error: doctorError,
 } = await supabaseAdmin
-  .from("doctors")
-  .select(
-    `
-    users!inner(status)
-    `,
-    {
-      count: "exact",
-      head: true,
-    }
-  )
-  .eq("users.status", "active");
+  .from("users")
+  .select("*", {
+    count: "exact",
+    head: true,
+  })
+  .eq("role", "doctor")
+  .eq("status", "active");
 
 if (doctorError) {
   throw new Error(doctorError.message);
