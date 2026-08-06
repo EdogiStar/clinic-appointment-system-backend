@@ -34,22 +34,26 @@ const getDashboardStats = async () => {
   };
 
 
-  // Doctors statistics
-  const {
-    count: doctorCount,
-    error: doctorError,
-  } = await supabaseAdmin
-    .from("doctors")
-    .select("*", {
+ // Active doctors statistics
+const {
+  count: doctorCount,
+  error: doctorError,
+} = await supabaseAdmin
+  .from("doctors")
+  .select(
+    `
+    users!inner(status)
+    `,
+    {
       count: "exact",
       head: true,
-    });
+    }
+  )
+  .eq("users.status", "active");
 
-  if (doctorError) {
-    throw new Error(
-      doctorError.message
-    );
-  }
+if (doctorError) {
+  throw new Error(doctorError.message);
+}
 
 
   // Specialties count
